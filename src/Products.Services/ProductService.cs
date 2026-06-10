@@ -1,87 +1,114 @@
 ﻿using Contracts;
+using Entities.Exceptions;
 using Entities.Models;
 using Entities.Responses;
 using Serilog;
 using Shared.DataTransferObjects;
+using Shared.RequestFeatures;
 using Shared.Response;
-using EnrichedProduct = Shared.DataTransferObjects.EnrichedProduct;
+using ProductDto = Shared.DataTransferObjects.ProductDto;
 
 namespace Products.Services;
 
-public class ProductService(IRepositoryManager repository, IInventoryServiceClient inventoryServiceClient, ILogger logger) : IProductService
+public class ProductService(IRepositoryManager repository, ILogger logger) : IProductService
 {
-    public async Task<ApiBaseResponse> SaveProductAsync(CreateProductCommand request, CancellationToken cancellationToken)
+    
+     public async Task<ApiBaseResponse> GetProductsAsync
+        (Guid companyId, ProductParameters employeeParameters, bool trackChanges)
     {
-        // Could use Automapper or some library to handle mapping (It does not need to be Automapper!!).
-        repository.Product.CreateProduct(new Product()
-        {
-            Description = request.Description,
-            Name = request.Name,
-        });
-        
-        await repository.SaveAsync();
-        
-        logger.Information($"DB: Saved product:{request.Name}.");
+        await CheckIfProductExists(companyId, trackChanges);
 
-        var productDto = new ProductResponse(Guid.Empty);
+        var productsWithMetaData = await repository.Product
+            .GetProductsAsync(companyId, employeeParameters, trackChanges);
+       // var employeesDto = _mapper.Map<IEnumerable<EmployeeDto>>(employeesWithMetaData);
+       var productDtos = productsWithMetaData.Select(product => new ProductDto() { Id = product.Id, Name = product.Name }).ToList();
 
-        return new ApiOkResponse<ProductResponse>(productDto);
+       return new ApiOkResponse<(IEnumerable<ProductDto>,MetaData)>((productDtos, productsWithMetaData.MetaData));
+    }
+
+    public async Task<ApiBaseResponse> GetProductAsync(Guid manufacturerId, Guid id, bool trackChanges)
+    {
+        await CheckIfProductExists(manufacturerId, trackChanges);
+
+        var productDb = await GetProductForManufacturerAndCheckIfItExists(manufacturerId, trackChanges);
+        var productDto = new ProductDto() { Id = productDb.Id, Name = productDb.Name };
+        return new ApiOkResponse<ProductDto>(productDto);
     }
     
-    public async Task<ApiBaseResponse> GetProductIdAsync(Guid productId, CancellationToken cancellationToken)
+    public async Task<ApiBaseResponse> CreateProductForManufacturerAsync(Guid manufacturerId,
+        CreateProductForManufacturerCommand employeeForCreation)
     {
-        var product = await repository.Product.GetProductAsync(productId, true);
+        await CheckIfProductExists(manufacturerId, false);
 
-        if (product is null)
+        var productEntity = new Product()
         {
-            logger.Information($"DB: ProductId not found:{productId}.");
-            return new ProductNotFoundResponse(productId);
-        }
-
-        var inventoryResponse = await GetProductFromInventoryAsync(productId);
-
-        if (inventoryResponse.product == null || !inventoryResponse.result)
-        {
-            logger.Error($"Inventory service unavailable whilst trying to get information for product:{productId}");
-            
-            return new ApiOkResponse<EnrichedProduct>(new EnrichedProduct()
-            {
-                Id = productId,
-                Description = product.Description,
-                Name = product.Name,
-                PriceDetails = new PriceDetailsFailure()
-            });
-        }
-
-        logger.Information($"Successfully received information, from Inventory service for product:{productId}");
-        
-        var enrichedProduct = new EnrichedProduct()
-        {
-            Id = productId,
-            Description = product.Description,
-            Name = product.Name,
-            PriceDetails = new PriceDetailsSuccess()
-            {
-                Price = inventoryResponse.product.Price
-            }
+            ManufacturerId = manufacturerId,
+          //  Name = employeeForCreation.Name,
         };
 
-        return new ApiOkResponse<EnrichedProduct>(enrichedProduct);
+        repository.Product.CreateProductForManufacturer(manufacturerId, productEntity);
+        await repository.SaveAsync();
+
+        //var employeeToReturn = _mapper.Map<ProductDto>(productEntity);
+
+        return new ApiOkResponse<ProductResponse>(new ProductResponse(manufacturerId));
     }
 
-     async Task<(InventoryProduct? product,bool result)> GetProductFromInventoryAsync(Guid productId)
-     {
-         try
-         {
-             var inventoryResponse = await inventoryServiceClient.GetProductAsync(productId);
+    public async Task DeleteProductForManufacturerAsync(Guid manufacturerId, Guid id)
+    {
+        await CheckIfProductExists(manufacturerId, false);
 
-             return inventoryResponse.IsSuccessful ? new ValueTuple<InventoryProduct, bool>(inventoryResponse.Content, true) : new ValueTuple<InventoryProduct?, bool>(null, false);
-         }
-         catch (Exception ex)
-         {
-             //Another way to handle it is via APIException(refit), but regardless, we need to ensure flow continues, so we can return local product.
-             logger.Error($"Inventory service unavailable whilst trying to get information for product:{productId}", ex);
-             return new ValueTuple<InventoryProduct?, bool>(null, false);
-         }
+        var productDb = await GetProductForManufacturerAndCheckIfItExists(manufacturerId, false);
+
+        repository.Product.DeleteProduct(productDb);
+        await repository.SaveAsync();
+    }
+
+    public async Task UpdateProductForManufacturerAsync(Guid manufacturerId,
+        UpdateProductCommand  productForUpdate)
+    {
+        await CheckIfProductExists(manufacturerId, false);
+
+        var productDb = await GetProductForManufacturerAndCheckIfItExists(manufacturerId, false);
+
+        //_mapper.Map(employeeForUpdate, employeeDb);
+        await repository.SaveAsync();
+    }
+
+    public async Task<ApiBaseResponse> GetProductForPatchAsync
+        (Guid manufacturerId, Guid id, bool proTrackChanges, bool manTrackChanges)
+    {
+        await CheckIfProductExists(manufacturerId, manTrackChanges);
+
+        var productDb = await GetProductForManufacturerAndCheckIfItExists(manufacturerId, proTrackChanges);
+
+        //var employeeToPatch = _mapper.Map<EmployeeForUpdateDto>(employeeDb);
+
+       // return (employeeToPatch: employeeToPatch, employeeEntity: employeeDb);
+       return new ApiOkResponse<(ProductDto,Product)>((new ProductDto(), new Product()));
+    }
+
+    public async Task SaveChangesForPatchAsync(ProductDto productToPatch, Product productEntity)
+    {
+        //_mapper.Map(employeeToPatch, employeeEntity);
+        await repository.SaveAsync();
+    }
+     
+    private async Task CheckIfProductExists(Guid productId, bool trackChanges)
+    {
+        var product = await repository.Product.GetProductAsync(productId, trackChanges);
+        if (product is null)
+            throw new ProductNotFoundException();
+    }
+     
+     private async Task<Product> GetProductForManufacturerAndCheckIfItExists
+         (Guid manufacturerId, bool trackChanges)
+     {
+         var employeeDb = await repository.Product.GetProductAsync(manufacturerId, trackChanges);
+         
+         if (employeeDb is null)
+             throw new ProductNotFoundException();
+
+         return employeeDb;
      }
 }

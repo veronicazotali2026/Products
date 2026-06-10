@@ -1,49 +1,80 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Entities.Models;
+using Entities.Responses;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Products.Presentation.ActionFilters;
+using Products.Presentation.Applications;
 using Products.Services;
 using Shared.DataTransferObjects;
-using Shared.Response;
-using EnrichedProduct = Shared.DataTransferObjects.EnrichedProduct;
 using Serilog;
 using Shared.Extensions;
+using Shared.RequestFeatures;
+using Shared.Response;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Products.Presentation.APIS;
 
-[Route("api/products")]
-public class ProductsController(IServiceManager service, ILogger logger) : ApiControllerBase
+[Route("api/manufacturers/{manufacturerId}/products")]
+public class ProductsController(IServiceManager service, ILogger logger) : CommandHandler
 {
-
-    [HttpGet("{id:guid}", Name = "Get")]
-    [ProducesResponseType(typeof(EnrichedProduct), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Get(Guid id)
+    [HttpGet]
+    public async Task<IActionResult> GetEmployeesForCompany(Guid manufacturerId,
+        [FromQuery] ProductParameters employeeParameters)
     {
-        logger.Information("Requesting Product: {ProductId}", id);
-         var baseResult = await service.ProductService.GetProductIdAsync(id, new CancellationToken());
-     
-        if (!baseResult.Success)
-            return ProcessError(baseResult);
+        var pagedResult = await service.ProductService.GetProductsAsync(manufacturerId,
+            employeeParameters, trackChanges: false);
+        var result = pagedResult.GetResult<(ProductDto, MetaData)>();
         
-        var enrichedProduct = baseResult.GetResult<EnrichedProduct>();
-    
-        return Ok(enrichedProduct);
+        Response.Headers.Append("X-Pagination", JsonSerializer.Serialize(result.Item2));
+        
+        return Ok(result.Item1);
+    }
+
+    [HttpGet("{id:guid}", Name = "GetProductForManufacturer")]
+    public async Task<IActionResult> GetProductForManufacturer(Guid manufacturerId, Guid id) 
+    {
+        var product = await service.ProductService.GetProductAsync(manufacturerId, id, trackChanges: false);
+        return Ok(product);
     }
 
     [HttpPost]
     [ServiceFilter(typeof(ValidationFilterAttribute))]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> Post([FromBody] CreateProductCommand cmd)
+    public async Task<IActionResult> CreateProductForManufacturer
+        (Guid companyId, [FromBody] CreateProductForManufacturerCommand command) =>
+        await ExecuteCreateCommandAsync<CreateProductForManufacturerCommand, ProductResponse>(
+            service.ProductService.CreateProductForManufacturerAsync, command, companyId,"GetProductForManufacturer", CancellationToken.None);
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteEmployeeForCompany(Guid manufacturerId, Guid productId) => await ExecuteDeleteCommandAsync(
+        service.ProductService.DeleteProductForManufacturerAsync, manufacturerId, productId, CancellationToken.None);
+
+    [HttpPut("{id:guid}")]
+    [ServiceFilter(typeof(ValidationFilterAttribute))]
+    public async Task<IActionResult> UpdateProductManufacturer(Guid manufacturerId, [FromBody] UpdateProductCommand cmd) =>
+        await ExecuteUpdateCommandAsync(
+            service.ProductService.UpdateProductForManufacturerAsync, cmd,  manufacturerId, CancellationToken.None);
+
+    [HttpPatch("{id:guid}")]
+    [ServiceFilter(typeof(ValidationFilterAttribute))]
+    public async Task<IActionResult> PartiallyUpdateEmployeeForCompany(Guid manufacturerId, Guid id,
+        [FromBody] JsonPatchDocument<UpdateProductCommand> cmd)
     {
-        logger.Information("Creating Product: {ProductId}",cmd.Name);
-        
-        var baseResult = await service.ProductService.SaveProductAsync(cmd, new CancellationToken());
-        var productResult = baseResult.GetResult<ProductResponse>();
-        return CreatedAtRoute("Get", new { id = productResult.Id }, productResult);
+        var response = await service.ProductService.GetProductForPatchAsync(manufacturerId, id, false, true);
+
+        var result = response.GetResult<(ProductDto,Product)>();
+       // cmd.ApplyTo(result.Item1);
+
+        TryValidateModel(result.Item1);
+
+        if (!ModelState.IsValid)
+            return UnprocessableEntity(ModelState);
+
+        await service.ProductService.SaveChangesForPatchAsync(result.Item1, result.Item2);
+
+        return NoContent();
     }
 }

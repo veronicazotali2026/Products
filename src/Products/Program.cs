@@ -28,6 +28,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     options.SuppressModelStateInvalidFilter = true;
 });
 
+builder.Services.ConfigureOutputCaching();
+builder.Services.ConfigureRateLimitingOptions();
 builder.Services.AddControllers(config => {
         config.RespectBrowserAcceptHeader = true;
         config.ReturnHttpNotAcceptable = true;
@@ -70,6 +72,7 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Products API v1");
 });
 
+app.UseOutputCache();
 app.MapControllers();
 
 app.Run();

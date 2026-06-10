@@ -1,3 +1,3 @@
 namespace Shared.Response;
 
-public record ProductResponse(Guid Id);
+public record ProductResponse(Guid Id): BaseResponse;

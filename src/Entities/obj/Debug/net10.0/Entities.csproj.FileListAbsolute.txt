@@ -1,0 +1,12 @@
+/Users/home/RiderProjects/Products/src/Entities/bin/Debug/net10.0/Entities.deps.json
+/Users/home/RiderProjects/Products/src/Entities/bin/Debug/net10.0/Entities.dll
+/Users/home/RiderProjects/Products/src/Entities/bin/Debug/net10.0/Entities.pdb
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.GeneratedMSBuildEditorConfig.editorconfig
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.AssemblyInfoInputs.cache
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.AssemblyInfo.cs
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.csproj.CoreCompileInputs.cache
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.sourcelink.json
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.dll
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/refint/Entities.dll
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/Entities.pdb
+/Users/home/RiderProjects/Products/src/Entities/obj/Debug/net10.0/ref/Entities.dll

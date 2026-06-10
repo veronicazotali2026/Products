@@ -21,4 +21,14 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : class
 			.Where(expression);
 
 	public void Create(T entity) => RepositoryContext.Set<T>().Add(entity);
+
+	public IQueryable<T> FindAll(bool trackChanges) =>
+		!trackChanges ?
+			RepositoryContext.Set<T>()
+				.AsNoTracking() :
+			RepositoryContext.Set<T>();
+	
+	public void Update(T entity) => RepositoryContext.Set<T>().Update(entity);
+
+	public void Delete(T entity) => RepositoryContext.Set<T>().Remove(entity);
 }

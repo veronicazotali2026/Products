@@ -14,5 +14,11 @@ public class Product
 
     [Required(ErrorMessage = "Description is a required field.")]
     [MaxLength(60, ErrorMessage = "Maximum length for the Description is 60 characters.")]
-    public string? Description { get; set; }
+    public string? Description { get; init; }
+    
+    public decimal? Price { get; set; }
+    
+    [ForeignKey(nameof(Manufacturer))]
+    public Guid ManufacturerId { get; set; }
+    public Manufacturer? Manufacturer { get; set; }
 }
