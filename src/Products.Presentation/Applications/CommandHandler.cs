@@ -1,10 +1,10 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Entities.Extensions;
 using Entities.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Products.Presentation.APIS;
-using Shared.Extensions;
 using Shared.Response;
 
 namespace Products.Presentation.Applications;
@@ -36,6 +36,18 @@ public class CommandHandler : ApiControllerBase
     protected async Task<IActionResult> ExecuteDeleteCommandAsync(Func<Guid,Guid,Task> func, Guid parentId, Guid childId, CancellationToken cancellationToken)
     {
         await func(parentId,childId);
+        return NoContent();
+    }
+    
+    protected async Task<IActionResult> ExecuteUpdateCommandAsync<TCommand>(Func<TCommand,Task> func, TCommand cmd, CancellationToken cancellationToken) 
+    {
+        await func(cmd);
+        return NoContent();
+    }
+    
+    protected async Task<IActionResult> ExecuteDeleteCommandAsync(Func<Guid,Task> func, Guid parentId, CancellationToken cancellationToken)
+    {
+        await func(parentId);
         return NoContent();
     }
 }

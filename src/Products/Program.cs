@@ -1,22 +1,29 @@
+using Contracts;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Products.Extensions;
+using Products.Hateoas;
 using Products.Middleware;
 using Products.Presentation.ActionFilters;
 using Products.RequestHandlers;
 using Products.Services;
 using Serilog;
 using Serilog.Events;
+using Service.DataShaping;
+using Shared.DataTransferObjects;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureCors();
-builder.Services.ConfigureRefitClient();
 builder.Services.ConfigureRepositoryManager();
 builder.Services.ConfigureSqlContext(builder.Configuration);
 builder.Services.ConfigureSwagger();
 
 builder.Services.AddScoped<ValidationFilterAttribute>();
+builder.Services.AddScoped<ValidateMediaTypeAttribute>();
+builder.Services.AddScoped<IDataShaper<ProductDto>, DataShaper<ProductDto>>();
+builder.Services.AddScoped<IProductLinks, ProductLinks>();
+
 builder.Services.AddScoped<IServiceManager, ServiceManager>();
 builder.Services.AddScoped<ICorrelationIdAccessor, CorrelationIdAccessor>();
 builder.Services.AddScoped<CorrelationIdDelegatingHandler>();

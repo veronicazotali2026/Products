@@ -5,18 +5,16 @@ namespace Products.Services;
 
 public interface IManufacturerService
 {
-    Task<IEnumerable<ManufacturerDto>> GetAllManufacturersAsync(bool trackChanges);
-    Task<ManufacturerDto> GetManufacturerAsync(Guid id, bool trackChanges);
+    Task<ApiBaseResponse> GetAllManufacturersAsync(bool trackChanges);
+    Task<ApiBaseResponse> GetManufacturerAsync(Guid id, bool trackChanges);
 
-    ApiBaseResponse CreateManufacturerAsync(CreateManufacturerCommand command);
+    Task<ApiBaseResponse> CreateManufacturerAsync(CreateManufacturerCommand command);
 
-    Task<IEnumerable<ManufacturerDto>> GetByIdsAsync(IEnumerable<Guid> ids, bool trackChanges);
+    Task<ApiBaseResponse> GetByIdsAsync(IEnumerable<Guid> ids, bool trackChanges);
 
-    Task<(IEnumerable<ManufacturerDto> companies, string ids)> CreateManufacturerCollectionAsync
-        (IEnumerable<ManufacturerDto> manufacturerCollection);
+    Task<ApiBaseResponse> CreateManufacturerCollectionAsync(CreateCollectionCommand cmd);
 
-    Task DeleteManufacturerAsync(Guid manufacturerId, bool trackChanges);
+    Task DeleteManufacturerAsync(Guid manufacturerId);
 
-    Task UpdateManufacturerAsync(Guid manufacturerId,
-        UpdateManufacturerCommand command, bool trackChanges);
+    Task UpdateManufacturerAsync(Guid manufacturerId, UpdateManufacturerCommand command);
 }

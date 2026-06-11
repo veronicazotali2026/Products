@@ -23,8 +23,8 @@ internal sealed class ProductRepository(RepositoryContext repositoryContext)
 	{
 		var products = await FindByCondition(e => e.Id.Equals(productId), trackChanges)
 			.FilterProducts(productParameters.MinPrice, productParameters.MaxPrice)
-			.Search(productParameters.SearchTerm)
-			.Sort(productParameters.OrderBy)
+			.Search(productParameters.SearchTerm!)
+			.Sort(productParameters.OrderBy!)
 			.ToListAsync();
 
 		return PagedList<Product>

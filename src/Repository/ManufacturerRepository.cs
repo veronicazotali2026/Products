@@ -13,8 +13,8 @@ internal sealed class ManufacturerRepository(RepositoryContext repositoryContext
             .ToListAsync();
   
     public async Task<Manufacturer> GetManufacturerAsync(Guid companyId, bool trackChanges) =>
-        await FindByCondition(c => c.ManufacturerId.Equals(companyId), trackChanges)
-            .SingleOrDefaultAsync();
+        (await FindByCondition(c => c.ManufacturerId.Equals(companyId), trackChanges)
+            .SingleOrDefaultAsync())!;
 
     public void CreateManufacturer(Manufacturer manufacturer) => Create(manufacturer);
 

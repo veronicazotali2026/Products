@@ -1,38 +1,34 @@
 using Contracts;
 using Entities.Exceptions;
 using Entities.Models;
+using Entities.Responses;
 using Products.Services;
 using Serilog;
 using Shared.DataTransferObjects;
-
 
 internal sealed class ManufacturerService : IManufacturerService
 {
     private readonly IRepositoryManager _repository;
 
-    public ManufacturerService(IRepositoryManager repository, ILogger logger)
-    {
-        _repository = repository;
-    }
+    public ManufacturerService(IRepositoryManager repository, ILogger logger) => _repository = repository;
 
-    public async Task<IEnumerable<ManufacturerDto>> GetAllManufacturersAsync(bool trackChanges)
+    public async Task<ApiBaseResponse> GetAllManufacturersAsync(bool trackChanges)
     {
-        var companies = await _repository.Manufacturer.GetAllManufacturersAsync(trackChanges);
-
-        //var companiesDto = _mapper.Map<IEnumerable<CompanyDto>>(companies);
+        var manufacturers = await _repository.Manufacturer.GetAllManufacturersAsync(trackChanges);
+        //Create your own mapper
         var manufacturerDtos = new List<ManufacturerDto>(); 
-        return manufacturerDtos;
+        return new ApiOkResponse<IEnumerable<ManufacturerDto>>(manufacturerDtos);
     }
 
-    public async Task<ManufacturerDto> GetManufacturerAsync(Guid id, bool trackChanges)
+    public async Task<ApiBaseResponse> GetManufacturerAsync(Guid id, bool trackChanges)
     {
         var manufacturer = await GetManufacturerAsync(id, trackChanges);
 
         var manufacturerDto = new ManufacturerDto();
-        return manufacturerDto;
+        return new ApiOkResponse<ManufacturerDto>(manufacturerDto);
     }
 
-    public async Task<ManufacturerDto> CreateManufacturerAsync(CreateManufacturerCommand command)
+    public async Task<ApiBaseResponse> CreateManufacturerAsync(CreateManufacturerCommand command)
     {
         var manufacturerEntity = new Manufacturer();
 
@@ -41,31 +37,39 @@ internal sealed class ManufacturerService : IManufacturerService
 
         var companyToReturn = new ManufacturerDto();
 
-        return companyToReturn;
+        return new ApiOkResponse<ManufacturerDto>(companyToReturn);
     }
 
-    public async Task<IEnumerable<ManufacturerDto>> GetByIdsAsync(IEnumerable<Guid> ids, bool trackChanges)
+    public async Task<ApiBaseResponse> GetByIdsAsync(IEnumerable<Guid> ids, bool trackChanges)
     {
         if (ids is null)
             throw new IdParametersBadRequestException();
 
-        var companyEntities = await _repository.Manufacturer.GetByIdsAsync(ids, trackChanges);
-        if (ids.Count() != companyEntities.Count())
+        var manufacturerEntities = await _repository.Manufacturer.GetByIdsAsync(ids, trackChanges);
+        if (ids.Count() != manufacturerEntities.Count())
             throw new CollectionByIdsBadRequestException();
-
-        //var companiesToReturn = _mapper.Map<IEnumerable<ManufacturerDto>>(companyEntities);
-
+        
+        //Handle mapping
         var manufacturerDtos = new List<ManufacturerDto>();
-        return manufacturerDtos;
+        return new ApiOkResponse<IEnumerable<ManufacturerDto>>(manufacturerDtos);
     }
 
-    public async Task<(IEnumerable<ManufacturerDto> companies, string ids)> CreateManufacturerCollectionAsync
-        (IEnumerable<ManufacturerDto> companyCollection)
+    public Task<ApiBaseResponse> CreateManufacturerCollectionAsync(CreateCollectionCommand cmd)
     {
-        if (companyCollection is null)
+        throw new NotImplementedException();
+    }
+    
+    public Task UpdateManufacturerAsync(Guid manufacturerId, UpdateManufacturerCommand command)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<ApiBaseResponse> CreateManufacturerCollectionAsync
+        (IEnumerable<ManufacturerDto> manufacturerCollection)
+    {
+        if (manufacturerCollection is null)
             throw new CollectionByIdsBadRequestException();
 
-        //var companyEntities = _mapper.Map<IEnumerable<Company>>(companyCollection);
         var manufacturerEntities = new List<Manufacturer>();
         foreach (var company in manufacturerEntities)
         {
@@ -74,16 +78,15 @@ internal sealed class ManufacturerService : IManufacturerService
 
         await _repository.SaveAsync();
 
-        //var companyCollectionToReturn = _mapper.Map<IEnumerable<ManufacturerDto>>(companyEntities);
         var manufacturerCollectionToReturn = new List<ManufacturerDto>();
         var ids = string.Join(",", manufacturerCollectionToReturn.Select(c => c.Id));
 
-        return (companies: manufacturerCollectionToReturn, ids: ids);
+        return new ApiOkResponse<(IEnumerable<ManufacturerDto> companies, string ids)>((manufacturerCollectionToReturn, ids));
     }
 
-    public async Task DeleteManufacturerAsync(Guid manufacturerId, bool trackChanges)
+    public async Task DeleteManufacturerAsync(Guid manufacturerId)
     {
-        var manufacturer = await GetManufacturerAndCheckIfItExists(manufacturerId, trackChanges);
+        var manufacturer = await GetManufacturerAndCheckIfItExists(manufacturerId, true);
 
         _repository.Manufacturer.DeleteManufacturer(manufacturer);
         await _repository.SaveAsync();
@@ -93,8 +96,6 @@ internal sealed class ManufacturerService : IManufacturerService
         UpdateManufacturerCommand command, bool trackChanges)
     {
         var manufacturer = await GetManufacturerAndCheckIfItExists(manufacturerId, trackChanges);
-
-        //_mapper.Map(companyForUpdate, company);
         await _repository.SaveAsync();
     }
 

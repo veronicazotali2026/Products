@@ -1,8 +1,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Entities.Extensions;
+using Entities.LinkModels;
 using Entities.Models;
-using Entities.Responses;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,6 @@ using Products.Presentation.Applications;
 using Products.Services;
 using Shared.DataTransferObjects;
 using Serilog;
-using Shared.Extensions;
 using Shared.RequestFeatures;
 using Shared.Response;
 using JsonSerializer = System.Text.Json.JsonSerializer;
@@ -19,19 +19,24 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 namespace Products.Presentation.APIS;
 
 [Route("api/manufacturers/{manufacturerId}/products")]
-public class ProductsController(IServiceManager service, ILogger logger) : CommandHandler
+public class ProductsController(IServiceManager service) : CommandHandler
 {
     [HttpGet]
-    public async Task<IActionResult> GetEmployeesForCompany(Guid manufacturerId,
-        [FromQuery] ProductParameters employeeParameters)
+    [ServiceFilter(typeof(ValidateMediaTypeAttribute))]
+    public async Task<IActionResult> GetProductsForManufacturer(Guid manufacturerId,
+        [FromQuery] ProductParameters productParameters)
     {
-        var pagedResult = await service.ProductService.GetProductsAsync(manufacturerId,
-            employeeParameters, trackChanges: false);
-        var result = pagedResult.GetResult<(ProductDto, MetaData)>();
+        var linkParams = new LinkParameters(productParameters, HttpContext);
+
+        var response = await service.ProductService.GetProductsAsync(manufacturerId,
+            linkParams, trackChanges: false);
+
+        var result = response.GetResult<(LinkResponse, MetaData)>();
         
         Response.Headers.Append("X-Pagination", JsonSerializer.Serialize(result.Item2));
-        
-        return Ok(result.Item1);
+
+        return result.Item1.HasLinks ? Ok(result.Item1.LinkedEntities) :
+            Ok(result.Item1.ShapedEntities);
     }
 
     [HttpGet("{id:guid}", Name = "GetProductForManufacturer")]
@@ -66,7 +71,8 @@ public class ProductsController(IServiceManager service, ILogger logger) : Comma
         var response = await service.ProductService.GetProductForPatchAsync(manufacturerId, id, false, true);
 
         var result = response.GetResult<(ProductDto,Product)>();
-       // cmd.ApplyTo(result.Item1);
+        
+        //cmd.ApplyTo(result.Item1);
 
         TryValidateModel(result.Item1);
 

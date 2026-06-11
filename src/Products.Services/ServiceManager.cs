@@ -3,9 +3,9 @@ using Serilog;
 
 namespace Products.Services;
 
-public sealed class ServiceManager(IRepositoryManager repositoryManager,  ILogger logger) : IServiceManager
+public sealed class ServiceManager(IRepositoryManager repositoryManager, IProductLinks productLinks, ILogger logger) : IServiceManager
 {
-	private readonly Lazy<IProductService> _productService = new(() => new ProductService(repositoryManager, logger));
+	private readonly Lazy<IProductService> _productService = new(() => new ProductService(repositoryManager, productLinks));
 	
 	private readonly Lazy<IManufacturerService> _manufacturerService = new(() => new ManufacturerService(repositoryManager, logger));
 

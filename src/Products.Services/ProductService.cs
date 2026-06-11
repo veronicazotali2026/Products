@@ -1,5 +1,6 @@
 ﻿using Contracts;
 using Entities.Exceptions;
+using Entities.LinkModels;
 using Entities.Models;
 using Entities.Responses;
 using Serilog;
@@ -10,20 +11,21 @@ using ProductDto = Shared.DataTransferObjects.ProductDto;
 
 namespace Products.Services;
 
-public class ProductService(IRepositoryManager repository, ILogger logger) : IProductService
+public class ProductService(IRepositoryManager repository, IProductLinks productLinks) : IProductService
 {
-    
-     public async Task<ApiBaseResponse> GetProductsAsync
-        (Guid companyId, ProductParameters employeeParameters, bool trackChanges)
+    public async Task<ApiBaseResponse> GetProductsAsync
+        (Guid manufacturerId, LinkParameters linkParameters, bool trackChanges)
     {
-        await CheckIfProductExists(companyId, trackChanges);
+        await CheckIfProductExists(manufacturerId, trackChanges);
 
         var productsWithMetaData = await repository.Product
-            .GetProductsAsync(companyId, employeeParameters, trackChanges);
-       // var employeesDto = _mapper.Map<IEnumerable<EmployeeDto>>(employeesWithMetaData);
-       var productDtos = productsWithMetaData.Select(product => new ProductDto() { Id = product.Id, Name = product.Name }).ToList();
+            .GetProductsAsync(manufacturerId, linkParameters.ProductParameters, trackChanges);
 
-       return new ApiOkResponse<(IEnumerable<ProductDto>,MetaData)>((productDtos, productsWithMetaData.MetaData));
+        var productsDto = new List<ProductDto>();
+        var links = productLinks.TryGenerateLinks(productsDto, linkParameters.ProductParameters.Fields!,
+            manufacturerId, linkParameters.Context);
+
+        return new ApiOkResponse<(LinkResponse, MetaData)>((links, productsWithMetaData.MetaData));
     }
 
     public async Task<ApiBaseResponse> GetProductAsync(Guid manufacturerId, Guid id, bool trackChanges)
